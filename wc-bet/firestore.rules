@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 인증 없이 읽기/쓰기 허용 (친구들끼리만 링크 공유)
+    match /users/{id} {
+      allow read, write: if true;
+    }
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if true; // 관리자 이름 체크는 앱에서
+    }
+    match /bets/{betId} {
+      allow read, write: if true;
+    }
+    match /settlements/{key} {
+      allow read, write: if true;
+    }
+  }
+}
