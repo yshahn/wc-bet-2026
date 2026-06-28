@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🇰🇷 Korea Bet 2026</title>
+<title>⚽ World Cup 2026 Bracket</title>
 
 <!-- Firebase SDK -->
 <script type="module">
@@ -176,7 +176,7 @@ function renderLogin() {
   return `
   <div class="auth-wrap">
     <div class="auth-logo">🇰🇷</div>
-    <div class="auth-title">KOREA BET 2026</div>
+    <div class="auth-title">WORLD CUP 2026</div>
     <p class="auth-tag">친구들과 한국 경기 스코어 베팅</p>
     <input class="auth-input" id="nameInput" type="text" placeholder="이름 입력 (예: 철수)" maxlength="12" autofocus>
     <div id="authErr" class="auth-err"></div>
@@ -190,8 +190,8 @@ function renderApp() {
   <div class="shell">
     <header class="header">
       <div>
-        <div class="logo">🇰🇷 KOREA BET 2026</div>
-        <div class="sub">${state.user.name}님</div>
+        <div class="logo">⚽ WORLD CUP 2026</div>
+        <div class="sub">${state.user.name}님 환영합니다</div>
       </div>
       <button class="logout-btn" id="logoutBtn">나가기</button>
     </header>
@@ -648,76 +648,129 @@ function renderTree() {
 function renderRank() {
   var COLORS = ['#F5A623','#5dc882','#6b8ff5','#e05555','#c47cf5','#5bc8d4'];
   var results = state.bracketResults || {};
-  var PRIZES = [Math.floor(TOTAL_POT*.5), Math.floor(TOTAL_POT*.3), Math.floor(TOTAL_POT*.2)];
+  var PRIZE_RATES = [0.5, 0.3, 0.2];
   var MEDALS = ['🥇','🥈','🥉'];
+  var MEDAL_COLORS = ['#FFD700','#ccc','#cd7f32'];
 
-  // Calc bracket score for each submitted user
+  // Calc score per user
   var leaderboard = Object.entries(state.brackets)
     .filter(function(e){ return e[1] && e[1].submitted; })
     .map(function(e) {
       var uid = e[0], doc = e[1], picks = doc.picks || {};
-      var score = 0;
-      // r32
+      var score = 0, hits = 0;
       DEFAULT_BRACKET_MATCHES.forEach(function(m){
-        if (picks[m.id] && results[m.id] && picks[m.id]===results[m.id]) score += 1;
+        if (picks[m.id] && results[m.id] && picks[m.id]===results[m.id]) { score+=1; hits++; }
       });
-      // r16~rf
       [['r16',2],['r8',3],['r4',4],['rf',5]].forEach(function(rp){
         Object.keys(picks).filter(function(k){return k.startsWith(rp[0]+'_');}).forEach(function(k){
-          if (picks[k] && results[k] && picks[k]===results[k]) score += rp[1];
+          if (picks[k] && results[k] && picks[k]===results[k]) { score+=rp[1]; hits++; }
         });
       });
-      var u = state.users.find(function(u){return u.id===uid;}) || {name:uid, id:uid};
-      return {id:uid, name:u.name, score:score};
+      var u = state.users.find(function(u){return u.id===uid;}) || {name:uid,id:uid};
+      return {id:uid, name:u.name, score:score, hits:hits};
     })
     .sort(function(a,b){ return b.score - a.score; });
 
-  // Also list people who haven't submitted yet
+  // Assign ranks with tie handling
+  // rank 0,1,2 = top 3 prize positions
+  // Ties share the combined prize of tied positions
+  function assignPrizes(lb) {
+    if (!lb.length) return lb;
+    var result = lb.map(function(u){ return Object.assign({}, u, {prize:0, rankLabel:'', tied:false}); });
+    var i = 0;
+    while (i < result.length) {
+      // Find all with same score
+      var j = i;
+      while (j < result.length && result[j].score === result[i].score) j++;
+      var tiedCount = j - i;
+      var tiedPositions = [];
+      for (var k = i; k < j && k < 3; k++) tiedPositions.push(k);
+
+      if (tiedPositions.length > 0) {
+        // Sum up prizes for tied positions and split
+        var totalPrize = 0;
+        tiedPositions.forEach(function(p){ totalPrize += Math.floor(TOTAL_POT * PRIZE_RATES[p]); });
+        var splitPrize = Math.floor(totalPrize / tiedPositions.length);
+        for (var k = i; k < j; k++) {
+          if (k < 3 && result[k].score > 0) {
+            result[k].prize = splitPrize;
+            result[k].rankLabel = tiedCount > 1 && tiedPositions.length > 0
+              ? MEDALS[tiedPositions[0]] + (tiedPositions.length > 1 ? '~' + MEDALS[tiedPositions[tiedPositions.length-1]] : '')
+              : MEDALS[tiedPositions[0]];
+            result[k].rankColor = MEDAL_COLORS[tiedPositions[0]];
+            result[k].tied = tiedCount > 1 && tiedPositions.length > 0;
+          }
+        }
+      }
+      i = j;
+    }
+    return result;
+  }
+
+  var ranked = assignPrizes(leaderboard);
+
   var notSubmitted = state.users.filter(function(u){
     return !state.brackets[u.id] || !state.brackets[u.id].submitted;
   });
 
   var html = '';
 
-  // Prize summary card
+  // Prize pool card
   html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;text-align:center">'
-    + '<div style="font-family:sans-serif,sans-serif;font-size:16px;letter-spacing:1px;color:var(--muted);margin-bottom:8px">상금 풀</div>'
-    + '<div style="font-family:sans-serif,sans-serif;font-size:42px;color:var(--gold);letter-spacing:2px">$'+TOTAL_POT+'</div>'
-    + '<div style="display:flex;justify-content:center;gap:16px;margin-top:8px">'
-    + '<div style="text-align:center"><div style="font-size:20px">🥇</div><div style="font-size:13px;font-weight:700;color:#FFD700">$'+PRIZES[0]+'</div><div style="font-size:10px;color:var(--muted)">1위 (50%)</div></div>'
-    + '<div style="text-align:center"><div style="font-size:20px">🥈</div><div style="font-size:13px;font-weight:700;color:#ccc">$'+PRIZES[1]+'</div><div style="font-size:10px;color:var(--muted)">2위 (30%)</div></div>'
-    + '<div style="text-align:center"><div style="font-size:20px">🥉</div><div style="font-size:13px;font-weight:700;color:#cd7f32">$'+PRIZES[2]+'</div><div style="font-size:10px;color:var(--muted)">3위 (20%)</div></div>'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">상금 풀</div>'
+    + '<div style="font-size:42px;font-weight:700;color:var(--gold)">$'+TOTAL_POT+'</div>'
+    + '<div style="display:flex;justify-content:center;gap:16px;margin-top:10px">'
+    + PRIZE_RATES.map(function(r,i){
+        return '<div style="text-align:center">'
+          +'<div style="font-size:20px">'+MEDALS[i]+'</div>'
+          +'<div style="font-size:13px;font-weight:700;color:'+MEDAL_COLORS[i]+'">$'+Math.floor(TOTAL_POT*r)+'</div>'
+          +'<div style="font-size:10px;color:var(--muted)">'+(i===0?'1위 50%':i===1?'2위 30%':'3위 20%')+'</div>'
+          +'</div>';
+      }).join('')
     + '</div></div>';
 
-  // Leaderboard
   html += '<div class="section-title" style="margin-top:0">브래킷 리더보드</div>';
 
-  if (leaderboard.length === 0) {
+  if (!ranked.length) {
     html += '<div class="empty">아직 제출한 참가자가 없어요</div>';
   } else {
-    leaderboard.forEach(function(u, i) {
+    // Group by score for rank display
+    var displayRank = 0, prevScore = -1, sameCount = 0;
+    ranked.forEach(function(u, i) {
+      if (u.score !== prevScore) { displayRank = i+1; sameCount = 0; }
+      sameCount++;
+      prevScore = u.score;
       var isMe = u.id === state.user.id;
-      var prize = i < 3 ? '<span style="font-size:12px;color:'+(i===0?'#FFD700':i===1?'#ccc':'#cd7f32')+'">'+MEDALS[i]+' $'+PRIZES[i]+'</span>' : '';
+
+      // Hits count by round
+      var hitsTotal = u.hits;
+
       html += '<div class="rank-row '+(isMe?'me':'')+'">'
-        + '<div class="rank-num '+(i<3?'top':'')+'">'+( i+1)+'</div>'
+        + '<div class="rank-num '+(u.prize>0?'top':'')+'">'+displayRank+(u.tied?'=':'')+'</div>'
         + '<div class="avatar" style="background:'+COLORS[i%COLORS.length]+';color:#0D1B2A">'+u.name[0]+'</div>'
         + '<div class="rank-info">'
         + '<div class="rank-name">'+u.name+(isMe?' (나)':'')+'</div>'
-        + '<div class="rank-sub">적중 '+u.score+'점</div>'
+        + '<div class="rank-sub">적중 '+hitsTotal+'게임 · '+u.score+'점</div>'
         + '</div>'
-        + '<div style="text-align:right">'+prize+'</div>'
+        + '<div style="text-align:right;min-width:70px">'
+        + (u.prize > 0
+            ? '<div style="font-size:13px;font-weight:700;color:'+(u.rankColor||'#FFD700')+'">'
+              +(u.tied?'(타이) ':'')+u.rankLabel+'</div>'
+              +'<div style="font-size:13px;font-weight:700;color:'+(u.rankColor||'#FFD700')+'">$'+u.prize+'</div>'
+            : '<div style="font-size:11px;color:var(--muted)">—</div>')
+        + '</div>'
         + '</div>';
     });
   }
 
-  // Not submitted
   if (notSubmitted.length > 0) {
     html += '<div class="section-title" style="margin-top:16px">미제출</div>';
     notSubmitted.forEach(function(u) {
-      html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 13px;margin-bottom:6px;display:flex;align-items:center;gap:10px;opacity:.5">'
-        + '<div style="font-size:13px">'+u.name+'</div>'
-        + '<div style="font-size:11px;color:var(--muted);margin-left:auto">미제출</div>'
-        + '</div>';
+      html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;'
+        +'padding:10px 13px;margin-bottom:6px;display:flex;align-items:center;gap:10px;opacity:.5">'
+        +'<div style="font-size:13px">'+u.name+'</div>'
+        +'<div style="font-size:11px;color:var(--muted);margin-left:auto">미제출</div>'
+        +'</div>';
     });
   }
 
