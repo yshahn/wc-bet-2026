@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🇰🇷 Korea Bet 2026</title>
+<title>⚽ World Cup 2026 Bracket</title>
 
 <!-- Firebase SDK -->
 <script type="module">
@@ -23,12 +23,15 @@ const FIREBASE_CONFIG = {
   appId:             "1:309225982312:web:41a269c70f5aef39612edd",
 };
 const ADMIN_NAME = "한용수"; // 경기 결과 입력 권한
+const LOCK_TIME = new Date('2026-06-28T20:00:00Z'); // 6/28 4PM ET - 연장
+const TOTAL_POT = 190; // 캐리오버 풀
+function isBracketLocked() { return new Date() >= LOCK_TIME; }
 const BRACKET_ROUNDS = [
-  {id:'r32',label:'32강',points:1},
-  {id:'r16',label:'16강',points:2},
-  {id:'r8', label:'8강', points:3},
-  {id:'r4', label:'4강', points:4},
-  {id:'rf', label:'결승',points:5},
+  {id:'r32',label:'32강',points:2},
+  {id:'r16',label:'16강',points:4},
+  {id:'r8', label:'8강', points:6},
+  {id:'r4', label:'4강', points:8},
+  {id:'rf', label:'결승',points:10},
 ];
 // ─────────────────────────────────────────────────────────────────
 
@@ -173,7 +176,7 @@ function renderLogin() {
   return `
   <div class="auth-wrap">
     <div class="auth-logo">🇰🇷</div>
-    <div class="auth-title">KOREA BET 2026</div>
+    <div class="auth-title">WORLD CUP 2026</div>
     <p class="auth-tag">친구들과 한국 경기 스코어 베팅</p>
     <input class="auth-input" id="nameInput" type="text" placeholder="이름 입력 (예: 철수)" maxlength="12" autofocus>
     <div id="authErr" class="auth-err"></div>
@@ -187,18 +190,19 @@ function renderApp() {
   <div class="shell">
     <header class="header">
       <div>
-        <div class="logo">🇰🇷 KOREA BET 2026</div>
-        <div class="sub">${state.user.name}님</div>
+        <div class="logo">⚽ WORLD CUP 2026</div>
+        <div class="sub">${state.user.name}님 환영합니다</div>
       </div>
       <button class="logout-btn" id="logoutBtn">나가기</button>
     </header>
     <nav class="tabs">
       <div class="tab ${state.tab==='bet'?'on':''}" data-tab="bet"><span class="tab-icon">⚽</span>베팅</div>
       <div class="tab ${state.tab==='bracket'?'on':''}" data-tab="bracket"><span class="tab-icon">🗂️</span>브래킷</div>
-      <div class="tab ${state.tab==='rank'?'on':''}" data-tab="rank"><span class="tab-icon">🏆</span>랭킹</div>
+      <div class="tab ${state.tab==='tree'?'on':''}" data-tab="tree"><span class="tab-icon">🌳</span>대진표</div>
+      <div class="tab ${state.tab==='rank'?'on':''}" data-tab="rank"><span class="tab-icon">🏆</span>리더보드</div>
     </nav>
     <main class="page">
-      ${state.tab==='bet' ? renderBetting() : state.tab==='bracket' ? renderBracket() : renderRank()}
+      ${state.tab==='bet' ? renderBetting() : state.tab==='bracket' ? renderBracket() : state.tab==='tree' ? renderTree() : renderRank()}
     </main>
   </div>
   <div id="lockWarning" class="lock-toast">🔒 경기 시작! 베팅 변경이 불가합니다</div>
@@ -368,11 +372,11 @@ function renderBracket() {
     var r16 = nextRound(r32,'r16'), r8 = nextRound(r16,'r8');
     var r4  = nextRound(r8,'r4'),   rf = nextRound(r4,'rf');
     var rounds = [
-      {id:'r32',label:'32강',pts:1,ms:r32},
-      {id:'r16',label:'16강',pts:2,ms:r16},
-      {id:'r8', label:'8강', pts:3,ms:r8},
-      {id:'r4', label:'4강', pts:4,ms:r4},
-      {id:'rf', label:'결승',pts:5,ms:rf},
+      {id:'r32',label:'32강',pts:2,ms:r32},
+      {id:'r16',label:'16강',pts:4,ms:r16},
+      {id:'r8', label:'8강', pts:6,ms:r8},
+      {id:'r4', label:'4강', pts:8,ms:r4},
+      {id:'rf', label:'결승',pts:10,ms:rf},
     ];
 
     // Score
@@ -385,14 +389,18 @@ function renderBracket() {
     var totalSlots = r32.length+r16.length+r8.length+r4.length+rf.length;
     var filled = Object.keys(ap).length;
 
+    var locked = isBracketLocked();
     var html = '<div class="bracket-hero">'
       +'<div class="bh-left"><div class="bh-title">브래킷 챌린지</div>'
-      +'<div class="bh-sub">결승까지 전부 예측 · $10 · 제출후 변경불가</div></div>'
-      +'<div class="bh-right"><div class="bh-pool">$'+(subCount*10)+'</div>'
-      +'<div class="bh-pool-label">제출완료 '+subCount+'명</div></div></div>';
+      +'<div class="bh-sub">'+(locked?'🔒 선택 마감 (첫 경기 시작)':'⏰ 마감: 6/28 4PM ET 전까지 변경 가능')+'</div></div>'
+      +'<div class="bh-right"><div class="bh-pool">$'+TOTAL_POT+'</div>'
+      +'<div class="bh-pool-label">1위 $'+Math.floor(TOTAL_POT*.5)+' · 2위 $'+Math.floor(TOTAL_POT*.3)+' · 3위 $'+Math.floor(TOTAL_POT*.2)+'</div></div></div>';
 
     if (submitted) {
       html += '<div class="score-chip">내 점수: <strong>'+score+'점</strong> · <span style="color:#5dc882">✓ 제출완료</span></div>';
+    } else if (locked) {
+      html += '<div class="score-chip" style="background:rgba(224,85,85,.1);border-color:rgba(224,85,85,.3);color:#e05555">'
+        +'🔒 선택 마감 · '+filled+'/'+totalSlots+'경기 선택됨 (미제출)</div>';
     } else {
       html += '<div class="score-chip" style="background:rgba(255,165,0,.1);border-color:rgba(255,165,0,.3);color:#ffa500">'
         +'진행중: '+filled+' / '+totalSlots+'경기 선택</div>';
@@ -420,6 +428,9 @@ function renderBracket() {
       html += '</div>';
     }
 
+    // 마감 후 모든 사람 픽 공개
+    var showOthers = isBracketLocked();
+
     // Rounds
     rounds.forEach(function(r) {
       html += '<div class="section-title">'+r.label+' · 적중 '+r.pts+'점</div>';
@@ -428,10 +439,23 @@ function renderBracket() {
         var result = results[m.id] || '';
         var hUnk   = m.home === '?';
         var aUnk   = m.away === '?';
-        var locked = submitted || !!result;
+        var timeLocked = isBracketLocked();
+        var locked = submitted || !!result || timeLocked;
         var canClick = !locked && !hUnk && !aUnk;
 
-        // Inline styles for selection
+        // 마감 후 다른 사람 픽 집계
+        var hPickers = [], aPickers = [];
+        if (showOthers) {
+          Object.entries(state.brackets).forEach(function(e) {
+            var uid = e[0], doc = e[1];
+            if (!doc.picks) return;
+            var uname = (state.users.find(function(u){return u.id===uid;})||{name:uid}).name;
+            if (doc.picks[m.id] === m.home) hPickers.push(uname);
+            if (doc.picks[m.id] === m.away) aPickers.push(uname);
+          });
+        }
+
+        // Styles
         var hStyle = 'cursor:'+(canClick?'pointer':'default')+';transition:all .15s;';
         var aStyle = 'cursor:'+(canClick?'pointer':'default')+';transition:all .15s;';
         if (pick === m.home && !hUnk) hStyle += 'border:2px solid #FFD700;background:rgba(255,215,0,.3);';
@@ -452,6 +476,7 @@ function renderBracket() {
           +'<div class="bm-team" data-bpick="'+m.id+'" data-team="'+m.home+'" style="'+hStyle+'">'
           +(pick===m.home&&!hUnk ? '<div style="font-size:10px;color:#FFD700;font-weight:700;margin-bottom:3px">✓ 내 선택</div>' : '')
           +'<div class="bm-name" style="'+hNameColor+'">'+m.home+'</div>'
+          +(showOthers && hPickers.length>0 ? '<div style="font-size:9px;color:rgba(255,255,255,.45);margin-top:3px;line-height:1.4">'+hPickers.join(', ')+'</div>' : '')
           +(result===m.home ? '<div class="bm-result-tag">✓ 승</div>' : '')
           +(pick===m.home&&result===m.home ? '<div class="bm-score-tag">+'+r.pts+'점 🎉</div>' : '')
           +'</div>'
@@ -460,6 +485,7 @@ function renderBracket() {
           +'<div class="bm-team" data-bpick="'+m.id+'" data-team="'+m.away+'" style="'+aStyle+'">'
           +(pick===m.away&&!aUnk ? '<div style="font-size:10px;color:#FFD700;font-weight:700;margin-bottom:3px">✓ 내 선택</div>' : '')
           +'<div class="bm-name" style="'+aNameColor+'">'+m.away+'</div>'
+          +(showOthers && aPickers.length>0 ? '<div style="font-size:9px;color:rgba(255,255,255,.45);margin-top:3px;line-height:1.4">'+aPickers.join(', ')+'</div>' : '')
           +(result===m.away ? '<div class="bm-result-tag">✓ 승</div>' : '')
           +(pick===m.away&&result===m.away ? '<div class="bm-score-tag">+'+r.pts+'점 🎉</div>' : '')
           +'</div>'
@@ -468,11 +494,14 @@ function renderBracket() {
     });
 
     // Submit btn
-    if (!submitted) {
+    if (!submitted && !locked) {
       html += '<div style="margin-top:20px;padding:0 2px">'
         +'<button class="auth-btn" id="submitBracketBtn" '+(filled>=totalSlots?'':'disabled style="opacity:.4;cursor:not-allowed"')+'>'
         +(filled>=totalSlots ? '✅ 브래킷 제출 (변경불가)' : '모든 경기 선택 후 제출 가능 ('+filled+'/'+totalSlots+')')
         +'</button></div>';
+    } else if (!submitted && locked) {
+      html += '<div style="margin-top:20px;padding:14px;background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.3);border-radius:10px;text-align:center;font-size:13px;color:#e05555">'
+        +'🔒 첫 경기가 시작되어 제출이 마감되었습니다</div>';
     }
 
     return html;
@@ -485,95 +514,312 @@ function renderBracket() {
 
 
 
+
+function renderTree() {
+  var results   = state.bracketResults || {};
+  var myDoc     = state.brackets[state.user.id] || {};
+  var myPicks   = (myDoc.submitted ? myDoc.picks : draftPicks) || {};
+  var showOthers = isBracketLocked();
+
+  // ── Build rounds ─────────────────────────────────────────────
+  var r32 = DEFAULT_BRACKET_MATCHES;
+  function nextRound(prev, rid) {
+    var out = [];
+    for (var i = 0; i < prev.length; i += 2) {
+      var a = prev[i], b = prev[i+1];
+      out.push({ id: rid+'_'+(i/2+1), round: rid,
+        home: results[a.id] || myPicks[a.id] || '?',
+        away: results[b.id] || myPicks[b.id] || '?' });
+    }
+    return out;
+  }
+  var r16 = nextRound(r32,'r16');
+  var r8  = nextRound(r16,'r8');
+  var r4  = nextRound(r8,'r4');
+  var rf  = nextRound(r4,'rf');
+
+  // ── Layout constants ─────────────────────────────────────────
+  var TH = 34;          // team row height
+  var MH = TH*2 + 1;   // match box height (2 rows + divider) = 69
+  var BASE_GAP = 8;     // gap between matches in r32
+
+  // Gap between matches in round ri
+  function colGap(ri) {
+    if (ri === 0) return BASE_GAP;
+    return (MH + BASE_GAP) * Math.pow(2, ri) - MH;
+  }
+  // Top padding before first match in round ri (centers the column)
+  function topPad(ri) {
+    if (ri === 0) return 0;
+    return Math.floor(colGap(ri) / 2);
+  }
+  // Y center of match i in round ri
+  function matchCY(ri, i) {
+    return topPad(ri) + i * (MH + colGap(ri)) + Math.floor(MH / 2);
+  }
+
+  // Total content height (all rounds share same height)
+  var TOTAL_H = topPad(0) + 16 * (MH + BASE_GAP) - BASE_GAP; // ~1288
+
+  // ── Helpers ──────────────────────────────────────────────────
+  function getPickers(matchId, team) {
+    if (!showOthers || !team || team==='?') return [];
+    return Object.entries(state.brackets)
+      .filter(function(e){ return e[1]&&e[1].submitted&&e[1].picks&&e[1].picks[matchId]===team; })
+      .map(function(e){ var u=state.users.find(function(u){return u.id===e[0];}); return u?u.name:e[0]; });
+  }
+
+  function teamStyle(matchId, team) {
+    var result = results[matchId]||'', myPick = myPicks[matchId]||'';
+    var unknown = !team||team==='?';
+    var won  = !unknown&&result&&result===team;
+    var lost = !unknown&&result&&result!==team;
+    var pickers = getPickers(matchId, team);
+    var mine = !unknown && (myPick===team || pickers.indexOf(state.user.name)>=0);
+    if (won)   return {bg:'rgba(93,200,130,.22)',nc:'#5dc882',icon:'✓'};
+    if (lost)  return {bg:'rgba(0,0,0,.25)',nc:'rgba(255,255,255,.28)',icon:''};
+    if (mine)  return {bg:'rgba(255,215,0,.18)',nc:'#FFD700',icon:'★'};
+    if (unknown) return {bg:'rgba(255,255,255,.03)',nc:'rgba(255,255,255,.2)',icon:''};
+    return {bg:'#1A2940',nc:'#fff',icon:''};
+  }
+
+  function teamRow(matchId, team, isTop) {
+    var s = teamStyle(matchId, team);
+    var name = (!team||team==='?') ? '?' : team;
+    var pickers = getPickers(matchId, team);
+    var pHtml = '';
+    if (showOthers && pickers.length) {
+      pHtml = '<span style="font-size:7.5px;color:rgba(255,255,255,.38);margin-left:3px">('
+        + pickers.map(function(n){ return n===state.user.name?'<b style="color:#FFD700">'+n+'</b>':n; }).join(',')
+        + ')</span>';
+    }
+    return '<div style="height:'+TH+'px;display:flex;align-items:center;padding:0 8px;'
+      +'background:'+s.bg+';'+(isTop?'border-radius:6px 6px 0 0':'border-radius:0 0 6px 6px')+';">'
+      +'<span style="font-size:11px;font-weight:600;color:'+s.nc+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:78px">'+name+'</span>'
+      +(s.icon?'<span style="font-size:9px;color:'+s.nc+';margin-left:3px">'+s.icon+'</span>':'')
+      +pHtml
+      +'</div>';
+  }
+
+  function matchBox(m) {
+    return '<div style="width:110px;border:1px solid rgba(255,255,255,.13);border-radius:7px;overflow:hidden;flex-shrink:0">'
+      +teamRow(m.id, m.home, true)
+      +'<div style="height:1px;background:rgba(255,255,255,.1)"></div>'
+      +teamRow(m.id, m.away, false)
+      +'</div>';
+  }
+
+  // ── Build HTML ────────────────────────────────────────────────
+  var rounds = [
+    {label:'32강',pts:2, ms:r32, ri:0},
+    {label:'16강',pts:4, ms:r16, ri:1},
+    {label:'8강', pts:6, ms:r8,  ri:2},
+    {label:'4강', pts:8, ms:r4,  ri:3},
+    {label:'결승',pts:10,ms:rf,  ri:4},
+  ];
+
+  var html = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:20px">'
+    +'<div style="display:flex;align-items:flex-start;min-width:max-content;gap:0;padding:4px 2px 4px">';
+
+  rounds.forEach(function(r) {
+    var ri = r.ri;
+    var tp = topPad(ri);
+    var gp = colGap(ri);
+
+    // Column of matches
+    html += '<div style="display:flex;flex-direction:column">'
+      // Round header
+      +'<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-align:center;'
+      +'padding:3px 0 7px;width:110px;letter-spacing:.4px">'
+      +r.label+' <span style="color:rgba(255,255,255,.2)">'+r.pts+'pt</span></div>'
+      // Match stack with top padding
+      +'<div style="padding-top:'+tp+'px;display:flex;flex-direction:column;gap:'+gp+'px">';
+
+    r.ms.forEach(function(m) { html += matchBox(m); });
+
+    html += '</div></div>'; // end column
+
+    // SVG connector between this round and next
+    if (ri < 4) {
+      var n    = r.ms.length;   // number of matches this round
+      var SVG_H = TOTAL_H + 28; // +28 for header
+
+      html += '<div style="flex-shrink:0;width:20px">'
+        +'<div style="height:28px"></div>' // align with header
+        +'<svg width="20" height="'+TOTAL_H+'" xmlns="http://www.w3.org/2000/svg">';
+
+      for (var i = 0; i < n/2; i++) {
+        // Two source matches → one destination match
+        var y1 = matchCY(ri, i*2);       // center of top source
+        var y2 = matchCY(ri, i*2+1);     // center of bottom source
+        var yd = matchCY(ri+1, i);       // center of destination
+        var mid = (y1+y2)/2;
+
+        // Horizontal from source to midpoint
+        html += '<line x1="0" y1="'+y1+'" x2="10" y2="'+y1+'" stroke="rgba(255,255,255,.25)" stroke-width="1.5"/>';
+        html += '<line x1="0" y1="'+y2+'" x2="10" y2="'+y2+'" stroke="rgba(255,255,255,.25)" stroke-width="1.5"/>';
+        // Vertical connecting the two
+        html += '<line x1="10" y1="'+y1+'" x2="10" y2="'+y2+'" stroke="rgba(255,255,255,.25)" stroke-width="1.5"/>';
+        // Horizontal to next column
+        html += '<line x1="10" y1="'+yd+'" x2="20" y2="'+yd+'" stroke="rgba(255,255,255,.25)" stroke-width="1.5"/>';
+      }
+
+      html += '</svg></div>';
+    }
+  });
+
+  // Champion
+  var champ = results['rf_1'] || myPicks['rf_1'] || '';
+  var cy = matchCY(4, 0);
+  html += '<div style="flex-shrink:0;padding-top:'+(cy - 30 + 28)+'px;padding-left:4px">'
+    +'<div style="background:rgba(255,215,0,.15);border:2px solid #FFD700;border-radius:10px;'
+    +'padding:8px 10px;text-align:center;width:72px">'
+    +'<div style="font-size:20px">🏆</div>'
+    +'<div style="font-size:11px;font-weight:700;color:#FFD700;margin-top:3px">'+(champ||'?')+'</div>'
+    +'</div></div>';
+
+  html += '</div></div>';
+
+  // Legend
+  html += '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:rgba(255,255,255,.4)">'
+    +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(93,200,130,.3);border:1px solid #5dc882;display:inline-block"></span>실제승리</span>'
+    +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(255,215,0,.2);border:1px solid #FFD700;display:inline-block"></span>내픽 ★</span>'
+    +'<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(0,0,0,.3);display:inline-block"></span>탈락</span>'
+    +'</div>';
+
+  return html;
+}
+
 function renderRank() {
-  const COLORS = ['#F5A623','#5dc882','#6b8ff5','#e05555','#c47cf5','#5bc8d4'];
-  const isAdmin = state.user.name === ADMIN_NAME;
+  var COLORS = ['#F5A623','#5dc882','#6b8ff5','#e05555','#c47cf5','#5bc8d4'];
+  var results = state.bracketResults || {};
+  var PRIZE_RATES = [0.5, 0.3, 0.2];
+  var MEDALS = ['🥇','🥈','🥉'];
+  var MEDAL_COLORS = ['#FFD700','#ccc','#cd7f32'];
 
-  // Calculate stats per user (including in-progress bets)
-  const ranked = state.users.map((u, i) => {
-    let pnl = 0, spent = 0, wins = 0, totalBets = 0;
-    // Score bets
-    state.scoreBets.filter(b => b.userId===u.id).forEach(b => {
-      const m = state.matches.find(x => x.id===b.matchId);
-      if (!m) return;
-      totalBets++; spent += 10;
-      if (m.status === 'done') {
-        if (b.home===m.homeScore && b.away===m.awayScore) {
-          const mSBets = state.scoreBets.filter(x => x.matchId===m.id);
-          const scorePool = mSBets.length * 10;
-          const w = mSBets.filter(x=>x.home===m.homeScore && x.away===m.awayScore);
-          pnl += Math.floor(scorePool/w.length) - 10; wins++;
-        } else { pnl -= 10; }
+  // Calc score per user
+  var leaderboard = Object.entries(state.brackets)
+    .filter(function(e){ return e[1] && e[1].submitted; })
+    .map(function(e) {
+      var uid = e[0], doc = e[1], picks = doc.picks || {};
+      var score = 0, hits = 0;
+      DEFAULT_BRACKET_MATCHES.forEach(function(m){
+        if (picks[m.id] && results[m.id] && picks[m.id]===results[m.id]) { score+=2; hits++; }
+      });
+      [['r16',4],['r8',6],['r4',8],['rf',10]].forEach(function(rp){
+        Object.keys(picks).filter(function(k){return k.startsWith(rp[0]+'_');}).forEach(function(k){
+          if (picks[k] && results[k] && picks[k]===results[k]) { score+=rp[1]; hits++; }
+        });
+      });
+      var u = state.users.find(function(u){return u.id===uid;}) || {name:uid,id:uid};
+      return {id:uid, name:u.name, score:score, hits:hits};
+    })
+    .sort(function(a,b){ return b.score - a.score; });
+
+  // Assign ranks with tie handling
+  // rank 0,1,2 = top 3 prize positions
+  // Ties share the combined prize of tied positions
+  function assignPrizes(lb) {
+    if (!lb.length) return lb;
+    var result = lb.map(function(u){ return Object.assign({}, u, {prize:0, rankLabel:'', tied:false}); });
+    var i = 0;
+    while (i < result.length) {
+      // Find all with same score
+      var j = i;
+      while (j < result.length && result[j].score === result[i].score) j++;
+      var tiedCount = j - i;
+      var tiedPositions = [];
+      for (var k = i; k < j && k < 3; k++) tiedPositions.push(k);
+
+      if (tiedPositions.length > 0) {
+        // Sum up prizes for tied positions and split
+        var totalPrize = 0;
+        tiedPositions.forEach(function(p){ totalPrize += Math.floor(TOTAL_POT * PRIZE_RATES[p]); });
+        var splitPrize = Math.floor(totalPrize / tiedPositions.length);
+        for (var k = i; k < j; k++) {
+          if (k < 3 && result[k].score > 0) {
+            result[k].prize = splitPrize;
+            result[k].rankLabel = tiedCount > 1 && tiedPositions.length > 0
+              ? MEDALS[tiedPositions[0]] + (tiedPositions.length > 1 ? '~' + MEDALS[tiedPositions[tiedPositions.length-1]] : '')
+              : MEDALS[tiedPositions[0]];
+            result[k].rankColor = MEDAL_COLORS[tiedPositions[0]];
+            result[k].tied = tiedCount > 1 && tiedPositions.length > 0;
+          }
+        }
       }
+      i = j;
+    }
+    return result;
+  }
+
+  var ranked = assignPrizes(leaderboard);
+
+  var notSubmitted = state.users.filter(function(u){
+    return !state.brackets[u.id] || !state.brackets[u.id].submitted;
+  });
+
+  var html = '';
+
+  // Prize pool card
+  html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;text-align:center">'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">상금 풀</div>'
+    + '<div style="font-size:42px;font-weight:700;color:var(--gold)">$'+TOTAL_POT+'</div>'
+    + '<div style="display:flex;justify-content:center;gap:16px;margin-top:10px">'
+    + PRIZE_RATES.map(function(r,i){
+        return '<div style="text-align:center">'
+          +'<div style="font-size:20px">'+MEDALS[i]+'</div>'
+          +'<div style="font-size:13px;font-weight:700;color:'+MEDAL_COLORS[i]+'">$'+Math.floor(TOTAL_POT*r)+'</div>'
+          +'<div style="font-size:10px;color:var(--muted)">'+(i===0?'1위 50%':i===1?'2위 30%':'3위 20%')+'</div>'
+          +'</div>';
+      }).join('')
+    + '</div></div>';
+
+  html += '<div class="section-title" style="margin-top:0">브래킷 리더보드</div>';
+
+  if (!ranked.length) {
+    html += '<div class="empty">아직 제출한 참가자가 없어요</div>';
+  } else {
+    // Group by score for rank display
+    var displayRank = 0, prevScore = -1, sameCount = 0;
+    ranked.forEach(function(u, i) {
+      if (u.score !== prevScore) { displayRank = i+1; sameCount = 0; }
+      sameCount++;
+      prevScore = u.score;
+      var isMe = u.id === state.user.id;
+
+      // Hits count by round
+      var hitsTotal = u.hits;
+
+      html += '<div class="rank-row '+(isMe?'me':'')+'">'
+        + '<div class="rank-num '+(u.prize>0?'top':'')+'">'+displayRank+(u.tied?'=':'')+'</div>'
+        + '<div class="avatar" style="background:'+COLORS[i%COLORS.length]+';color:#0D1B2A">'+u.name[0]+'</div>'
+        + '<div class="rank-info">'
+        + '<div class="rank-name">'+u.name+(isMe?' (나)':'')+'</div>'
+        + '<div class="rank-sub">적중 '+hitsTotal+'게임 · '+u.score+'점</div>'
+        + '</div>'
+        + '<div style="text-align:right;min-width:70px">'
+        + (u.prize > 0
+            ? '<div style="font-size:13px;font-weight:700;color:'+(u.rankColor||'#FFD700')+'">'
+              +(u.tied?'(타이) ':'')+u.rankLabel+'</div>'
+              +'<div style="font-size:13px;font-weight:700;color:'+(u.rankColor||'#FFD700')+'">$'+u.prize+'</div>'
+            : '<div style="font-size:11px;color:var(--muted)">—</div>')
+        + '</div>'
+        + '</div>';
     });
-    // First goal bets
-    state.fgBets.filter(b => b.userId===u.id).forEach(b => {
-      const m = state.matches.find(x => x.id===b.matchId);
-      if (!m) return;
-      totalBets++; spent += 5;
-      if (m.status === 'done') {
-        if (b.player===m.firstGoalPlayer) {
-          const mFgBets = state.fgBets.filter(x => x.matchId===m.id);
-          const fgPool = mFgBets.length * 5;
-          const w = mFgBets.filter(x=>x.player===m.firstGoalPlayer);
-          pnl += Math.floor(fgPool/w.length) - 5; wins++;
-        } else { pnl -= 5; }
-      }
+  }
+
+  if (notSubmitted.length > 0) {
+    html += '<div class="section-title" style="margin-top:16px">미제출</div>';
+    notSubmitted.forEach(function(u) {
+      html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;'
+        +'padding:10px 13px;margin-bottom:6px;display:flex;align-items:center;gap:10px;opacity:.5">'
+        +'<div style="font-size:13px">'+u.name+'</div>'
+        +'<div style="font-size:11px;color:var(--muted);margin-left:auto">미제출</div>'
+        +'</div>';
     });
-    // Payment status per match
-    const payInfo = state.matches.map(m => ({
-      matchId: m.id, label: m.label,
-      paid: !!(state.payments[u.id] && state.payments[u.id][m.id])
-    }));
-    return { ...u, pnl, spent, wins, totalBets, payInfo, color: COLORS[i%COLORS.length] };
-  }).sort((a,b) => b.spent - a.spent || a.name.localeCompare(b.name));
+  }
 
-  const me = ranked.find(u => u.id===state.user.id);
-
-  // Rank rows
-  const rankRows = ranked.map((u,i) => {
-    const payBadges = u.payInfo.map(p => {
-      if (isAdmin) {
-        return `<button class="pay-btn ${p.paid?'paid':''}" data-uid="${u.id}" data-mid="${p.matchId}">
-          ${p.label} ${p.paid?'✓ 입금':'미입금'}
-        </button>`;
-      }
-      return `<span class="pay-badge ${p.paid?'paid':''}">${p.label} ${p.paid?'✓ 입금':'미입금'}</span>`;
-    }).join('');
-
-    return `
-    <div class="rank-row ${u.id===state.user.id?'me':''}">
-      <div class="rank-num ${i<3?'top':''}">${i+1}</div>
-      <div class="avatar" style="background:${u.color}">${u.name[0]}</div>
-      <div class="rank-info" style="min-width:0">
-        <div class="rank-name">${u.name}${u.id===state.user.id?' (나)':''}</div>
-        <div class="rank-sub">베팅 ${u.totalBets}건 · 적중 ${u.wins}회 · 지출 $${u.spent}</div>
-        <div class="pay-row">${payBadges}</div>
-      </div>
-      <div class="rank-pnl" style="color:${u.pnl>=0?'#5dc882':'#e05555'};min-width:48px;text-align:right">${u.pnl>=0?'+':''}$${u.pnl}</div>
-    </div>`;
-  }).join('');
-
-  // Settle rows (only for done matches)
-  const settleRows = me ? ranked.filter(u=>u.id!==state.user.id).map(u => {
-    const net = me.pnl - u.pnl;
-    if (net===0) return '';
-    const iReceive = net > 0;
-    const amt = Math.abs(Math.floor(net/2));
-    return `<div class="settle-row">
-      <div>
-        <div class="settle-desc">${iReceive ? `${u.name}님 → 나` : `나 → ${u.name}님`}</div>
-        <div class="settle-amt">$${amt}</div>
-      </div>
-      <div class="settle-icon">${iReceive?'💰':'💸'}</div>
-    </div>`;
-  }).join('') : '';
-
-  return `
-    <div class="section-title" style="margin-top:0">참가자 현황 ${isAdmin?'<span style="font-size:10px;color:var(--gold)">(관리자: 입금 확인 클릭)</span>':''}</div>
-    ${ranked.length === 0 ? '<div class="empty">아직 참가자가 없어요</div>' : rankRows}
-    <div class="section-title">정산 내역 <span style="font-size:10px;color:var(--muted)">(경기 종료 후 업데이트)</span></div>
-    ${settleRows || '<div class="empty">경기 종료 후 정산 내역이 표시됩니다</div>'}`;
+  return html;
 }
 
 function renderConfirmModal() {
@@ -820,13 +1066,14 @@ async function doLogin() {
 }
 
 // ── Boot ──────────────────────────────────────────────────────────
-async function boot() {
-  await initMatches();
-  const saved = localStorage.getItem('korbet_user');
-  if (saved) {
-    state.user = JSON.parse(saved);
-    subscribe();
-  }
+function boot() {
+  try {
+    const saved = localStorage.getItem('korbet_user');
+    if (saved) {
+      state.user = JSON.parse(saved);
+      subscribe();
+    }
+  } catch(e) { console.warn('boot error:', e); }
   render();
 }
 boot();
@@ -980,7 +1227,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:#fff;min-height:1
 .bracket-hero{display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px}
 .bh-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;color:var(--gold)}
 .bh-sub{font-size:11px;color:var(--muted);margin-top:2px}
-.bh-pool{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--green);letter-spacing:1px;text-align:right}
+.bh-pool{font-family:sans-serif,sans-serif;font-size:30px;color:var(--green);letter-spacing:1px;text-align:right}
 .bh-pool-label{font-size:10px;color:var(--muted);text-align:right}
 .score-chip{display:inline-block;background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.3);border-radius:20px;padding:5px 14px;font-size:13px;color:var(--gold);margin-bottom:14px}
 .score-chip strong{font-size:15px}
@@ -1006,7 +1253,23 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:#fff;min-height:1
 .bm-team.unknown .bm-name{font-style:italic}
 .bm-matchnum{font-size:10px;color:rgba(255,255,255,.25)}
 .bm-date{font-size:11px;color:var(--gold);font-weight:500}
-.bm-vs{font-family:'Bebas Neue',sans-serif;font-size:18px;color:rgba(255,255,255,.18);display:flex;align-items:center}
+/* Tree bracket */
+.tc-col{display:flex;flex-direction:column;min-width:110px}
+.tc-round-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;text-align:center;margin-bottom:6px;text-transform:uppercase}
+.tc-match{display:flex;flex-direction:column;gap:2px;margin-bottom:4px}
+.tc-sep{font-size:10px;color:rgba(255,255,255,.1);text-align:center;height:10px;line-height:10px}
+.tb-box{background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:5px 7px;min-width:100px;position:relative;transition:all .15s}
+.tb-box.tb-mine{border-color:#FFD700;background:rgba(255,215,0,.15)}
+.tb-box.tb-won{border-color:#5dc882;background:rgba(93,200,130,.15)}
+.tb-box.tb-lost{opacity:.35}
+.tb-box.tb-unknown{border-color:rgba(255,255,255,.06);color:rgba(255,255,255,.2);text-align:center;padding:8px}
+.tb-box.tb-champ{border-color:#FFD700;background:rgba(255,215,0,.2);text-align:center;padding:10px 8px}
+.tb-name{font-size:12px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-box.tb-mine .tb-name{color:#FFD700}
+.tb-box.tb-won .tb-name{color:#5dc882;font-weight:700}
+.tb-pickers{font-size:9px;margin-top:2px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-won-tag{position:absolute;top:3px;right:4px;font-size:9px;color:#5dc882;font-weight:700}
+.bm-vs{font-family:sans-serif,sans-serif;font-size:18px;color:rgba(255,255,255,.18);display:flex;align-items:center}
 .bm-admin-row{display:flex;gap:6px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
 .reset-btn{background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.3);border-radius:8px;padding:7px 12px;color:#e05555;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;white-space:nowrap}
 .reset-btn:hover{background:rgba(224,85,85,.2)}
@@ -1025,7 +1288,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:#fff;min-height:1
 <body>
 <div id="app">
   <div style="display:flex;align-items:center;justify-content:center;height:100vh">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:40px;color:#F5A623">🇰🇷</div>
+    <div style="font-family:sans-serif,sans-serif;font-size:40px;color:#F5A623">🇰🇷</div>
   </div>
 </div>
 </body>
